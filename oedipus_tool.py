@@ -30,9 +30,11 @@ def defineArguments():
     parser = argparse.ArgumentParser(prog="oedipus_tool.py", description="Uses the \"Oedipus\" platform to learn and cluster/classify Tigress-generated obfuscated programs according to the transformations they employ.", usage="python oedipus_tool.py [options]")
     parser.add_argument("-m", "--mode", help="The requested mode of operation.", choices=["generate", "classify-exp1", "classify-exp2", "extract", "extract-from-traces", "visualize", "gather-stats", "filter-traces"], required=True, default="classify-exp1")
     parser.add_argument("-g", "--statlogfile", help="The file containing a dump of classification results.", required=False, default="log.txt")
+    
     parser.add_argument("-s", "--sourcedir", help="The path to the directory containing the [un]obfuscated source code files.", required=False, default=".")
     parser.add_argument("-p", "--originalprograms", help="The path to the directory containing the original, unobfuscated programs.", required=False, default=".")
     parser.add_argument("-d", "--tigressdir", help="The path to the directory of \"tigress\".", required=False, default=".")
+
     parser.add_argument("-f", "--obfuscationfunction", help="The name of the function to obfuscate e.g. \"main\"", required=False, default="main")
     parser.add_argument("-r", "--filterfunction", help="The function to focus on during trace filteration.", required=False, default="main")
     parser.add_argument("-o", "--obfuscationlevel", help="The number of obfuscation combinations to employ.", required=False, default=1) 
@@ -55,6 +57,8 @@ def main():
         #################################################
         # MODE 1: Generate obfuscated source code files #
         #################################################
+
+        #done 调用Tigress生成混淆文件和.label文件(标记对应混淆文件使用了哪种混淆)
         if arguments.mode == "generate":
            if arguments.verbose == "yes":
                prettyPrint("Generating obfusted programs for programs under \"%s\"" %  arguments.sourcedir, "debug")
@@ -71,12 +75,14 @@ def main():
         #########################################################
         # MODE 2: Extract features from obfuscated source files #
         #########################################################
+
+        #done   提取特征
         elif arguments.mode == "extract":
             # Load obfuscated files
             if not os.path.exists(arguments.sourcedir):
                 prettyPrint("Unable to locate \"%s\". Exiting" % arguments.sourcedir, "error")
                 return
-            sourceFiles = sorted(glob.glob("%s/*.c" % arguments.sourcedir))
+            sourceFiles = sorted(glob.glob("%s/*.c" % arguments.sourcedir))#返回sourcedir目录下所有以.c结尾的文件并排序,sorted()返回一个新的List
             if len(sourceFiles) < 1:
                 prettyPrint("No files were found in \"%s\". Exiting" % arguments.sourcedir)
             
@@ -84,7 +90,7 @@ def main():
             for targetFile in sourceFiles:            
                 if not os.path.exists(targetFile.replace(".c", ".label")):
                     prettyPrint("File \"%s\" does not have a label/metadata file. Removing" % targetFile, "warning")
-                    sourceFiles.pop( sourceFiles.index(targetFile) )
+                    sourceFiles.pop( sourceFiles.index(targetFile) )#如果.c文件没有对应的.lable文件，则对其不进行后面的处理(提取TF-IDF))
 
             ########################################################################
             # (2.0) Extract TF-IDF features from GDB generated traces of KLEE inputs
@@ -101,6 +107,8 @@ def main():
         ###########################################################
         # MODE 3: Project data samples into <x>-dimensional space #
         ###########################################################
+
+        #done else可以执行到????
         elif arguments.mode.find("visualize") != -1:
             if arguments.mode == "visualize":
                 prettyPrint("Plotting data into %s-dimensional space with \"%s\" features." % (arguments.dimension, arguments.datatype))
@@ -144,7 +152,7 @@ def main():
                    prettyPrint("Plotting accuracies")
                    data_visualization.plotAccuracyGraph(targetDimensions, accuracies, "Number of Selected Features", "Classification Accuracy", "Classification Accuracy: Selected Features (%s)" % arguments.datatype, "accuracy_%s_exp1_%s_selectkbest.pdf" % (arguments.datatype, arguments.algorithm)) 
                    # Plot performance graph
-                   print timings
+                   print (timings)
                    #prettyPrint("Plotting performance")
                    #data_visualization.plotAccuracyGraph(targetDimensions, timings, "Number of Selected Features", "Classification Timing (sec)", "Classification Timing: Selected Features (%s)" % arguments.datatype) 
                   
@@ -169,7 +177,7 @@ def main():
                    prettyPrint("Plotting accuracies")
                    data_visualization.plotAccuracyGraph(targetDimensions, accuracies, "Number of Extracted Features", "Classification Accuracy", "Classification Accuracy: PCA (%s)" % arguments.datatype, "accuracy_%s_exp1_%s_pca.pdf" % (arguments.datatype, arguments.algorithm))
                    # Plot performance graph
-                   print timings
+                   print (timings)
                    #prettyPrint("Plotting performance")
                    #data_visualization.plotAccuracyGraph(targetDimensions, timings, "Number of Extracted Features", "Classification Timing (sec)", "Classification Timing: PCA (%s)" % arguments.datatype)
 
@@ -211,7 +219,7 @@ def main():
                # Plot performance graph
                #prettyPrint("Plotting timings")
                #data_visualization.plotAccuracyGraph(allDepths, timings, "Maximum Tree Depth", "Classification Timing (sec)", "Classification Timing: %s (%s)" % (splittingCriterion, arguments.datatype))
-               print timings
+               print (timings)
  
            return
 
@@ -248,7 +256,7 @@ def main():
                 # Remove the indices from trainingPrograms
                 trainingPrograms = [x for x in trainingPrograms if not x in trainingPrograms[testStartIndex:testStopIndex]]
                 if arguments.verbose == "yes":
-  		    prettyPrint("Original training programs: %s, original test programs: %s" % (len(trainingPrograms), len(testPrograms)), "debug")
+                    prettyPrint("Original training programs: %s, original test programs: %s" % (len(trainingPrograms), len(testPrograms)), "debug")
                 # Now load the training and test samples from the source directory
                 # 1- First we need to retrieve the obfuscated versions of the
                 tempTraining, tempTest = [], []
@@ -360,6 +368,8 @@ def main():
         ####################################
         # MODE X : Filter generated traces #
         ####################################
+
+        #done 过滤数据
         elif arguments.mode == "filter-traces":
             # Retrieve the necessary parameters
             inExtension = raw_input("Input extension (Default: dyndis): ")
@@ -373,6 +383,8 @@ def main():
         ########################################################
         # MODE XI: Generate TF-IDF feature vectors from traces #
         ########################################################
+
+        #done 对输入文件提取指定的特征
         elif arguments.mode == "extract-from-traces":
             # Retrieve the necessary paramters
             inExtension = raw_input("Input extension (Default: dyndis): ")

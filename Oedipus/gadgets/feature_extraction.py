@@ -28,6 +28,8 @@ def generateObjdumpDisassembly(outFile, inExt=".out", outExt=".objdump"):
         prettyPrint("The file \"%s\" is not an executable" % outFile, "warning")
         return False
     # Generate the objdump disassembly 
+    
+    #在当前目录创建"outFile".objdump文件，并将使用objdump反汇编outFile文件的结果写入新创建的文件中　
     objdumpFile = open(outFile.replace(inExt, outExt), "w")
     objdumpArgs = ["objdump", "--disassemble", outFile]
     objdumpOutput = subprocess.Popen(objdumpArgs, stderr=subprocess.STDOUT, stdout=objdumpFile).communicate()[0]
@@ -38,12 +40,13 @@ def generateObjdumpDisassembly(outFile, inExt=".out", outExt=".objdump"):
 
     return True
 
+#done　生成使用gdb的参数信息，保存到一个文件中
 def generateGDBScript(logFile="gdb.txt", inputFile="", runArgs=[]):
     """ Generates the GDB script needed for trace generation """
     gdbScript = open(logFile.replace(".txt",".script_%s" % str(time.time())[:-3]), "w")
     if len(runArgs) > 0 or len(inputFile) > 0:
         # Bundle all the arguments in one string
-        args = " ".join([a for a in runArgs])
+        args = " ".join([a for a in runArgs])#未使用
         # Beware of the "step" versus "stepi"
         gdbScript.write("set logging file %s\nset logging on\nset height 0\nset $_exitcode = -999\nset $_instructioncount = 0\nbreak __libc_start_main\nrun `< %s`\nwhile $_instructioncount <= 50000\n\tx/i $pc\n\tstepi\n\tif $_exitcode != -999\n\t\tset logging off\n\t\tquit\n\tend\n\tset $_instructioncount = $_instructioncount + 1\nend\nset logging off\nquit" % (logFile, inputFile))
     else:
@@ -51,18 +54,25 @@ def generateGDBScript(logFile="gdb.txt", inputFile="", runArgs=[]):
     gdbScript.close()
     return gdbScript.name
 
-def compileFile(targetFile):
+#done
+def compileFile(targetFile):#源文件（.c文件）
     """ Compiles a source files for feature extraction """
     aoutTimestamp = str(time.time()).replace(".","_")
+
+    #生成gcc编译时输出文件的文件名
     outFile = targetFile[targetFile.rfind("/")+1:].replace(".c",".out")
     outFile_strip = targetFile[targetFile.rfind("/")+1:].replace(".c", ".outs")
+
     #outFile = "%s_%s.out" % (fileName, aoutTimestamp)
+
+    #生成两种不同的文件，区别:-s参数，　生成文件是否带有符号表和重定位信息
     gccArgs = ["gcc", "-Wl,--unresolved-symbols=ignore-in-object-files","-std=c99", targetFile, "-o", outFile]
     gccArgs_strip = ["gcc", "-s", "-Wl,--unresolved-symbols=ignore-in-object-files","-std=c99", targetFile, "-o", outFile_strip]
     prettyPrint("Compiling \"%s\"" % targetFile, "debug")
-    subprocess.Popen(gccArgs, stderr=subprocess.STDOUT, stdout=subprocess.PIPE).communicate()[0]
+    subprocess.Popen(gccArgs, stderr=subprocess.STDOUT, stdout=subprocess.PIPE).communicate()[0]#创建子进程编译源文件
     prettyPrint("Compiling \"%s\" with \"-s\"" % targetFile, "debug")
     subprocess.Popen(gccArgs_strip, stderr=subprocess.STDOUT, stdout=subprocess.PIPE).communicate()[0]
+
     # Check if compilation succeeded by checking for existence of "a.out"
     if not os.path.exists(outFile) or not os.path.exists(outFile_strip):
         prettyPrint("Compiling \"%s\" failed. Skipping file" % targetFile , "warning")
@@ -159,22 +169,26 @@ def innerListLevenshtein(l):
         index += 1
     return round(reduce(lambda x, y: x + y, allDistances) / ops, 2)
 
+#done 调用GDB生成调试信息保存在.dyndis和.dyndiss文件中，并删除中间过程产生的文件
 def _generateDisassembly(targetFile, outFile, outFile_s):
     """ Generates a ".dyndis" file for a given file using a randomly generated testcase """
     try:
         disassemblyFile = targetFile.replace(".c", ".dyndis")
         disassemblyFile_strip = targetFile.replace(".c", ".dyndiss")
+
         testCaseFile = targetFile.replace(".c",".input")
-        testCase = getRandomNumber(5)
+        testCase = getRandomNumber(5)#生成随机数(位数为５)
         open(testCaseFile, "w").write(testCase) # Write the test case to a ".input" file.
         if os.path.exists(disassemblyFile):
             prettyPrint("Disassembly file \"%s\" already exists. Skipping" % disassemblyFile, "warning")
             return True
 
-        script = generateGDBScript(outFile.replace(".out", ".txt"), inputFile=testCaseFile)
+        script = generateGDBScript(outFile.replace(".out", ".txt"), inputFile=testCaseFile)#生成一个文件，保存使用GDB时需要的信息
         script_s = generateGDBScript(outFile_s.replace(".outs", ".txts"), inputFile=testCaseFile)
         # Launch the GDB script
         prettyPrint("Launching the GDB script. Release the Kraken!!")
+
+        #根据script参数，使用gdb后调试信息输出到.txt文件中
         gdbOutput = subprocess.Popen(["gdb", "-batch", "-x", script, outFile], stderr=subprocess.STDOUT, stdout=subprocess.PIPE).communicate()[0]
         gdbOutput_s = subprocess.Popen(["gdb", "-batch", "-x", script_s, outFile_s], stderr=subprocess.STDOUT, stdout=subprocess.PIPE).communicate()[0]
         # Check that the output does not indicate erroneous runtime behavior
@@ -185,6 +199,8 @@ def _generateDisassembly(targetFile, outFile, outFile_s):
         # Get the instruction trace of the process from "gdb.txt" and extract features from it
         if os.path.exists(outFile.replace(".out",".txt")):
             # Store the contents of "gdb.txt" as disassembly for further processing
+
+            #当.txt和.txts文件中没有错误信息时，将其写入.dyndis和.dyndiss文件中
             prettyPrint("Dumping dynamic disassembly to \"%s\" and \"%s\"" % (disassemblyFile, disassemblyFile_strip), "debug")
             gdbFile = open(disassemblyFile, "w")
             gdbFile_s = open(disassemblyFile_strip, "w")
@@ -202,7 +218,7 @@ def _generateDisassembly(targetFile, outFile, outFile_s):
         # Remove .txt files and .script files
         allfiles = glob.glob("./*.out*") + glob.glob("./*.script*") + glob.glob("./*.txt*") + glob.glob("./*.objdump*")
         for f in allfiles:
-            os.unlink(f)
+            os.unlink(f)#删除当前目录生成的所有中间文件
  
     except Exception as e:
         prettyPrint("Error encountered in \"_generateDisassembly\": %s" % e, "error")
@@ -257,35 +273,46 @@ def _generateDisassemblyFiles(targetFile, outFile, fileTestCases):
 
     return True
 
+#done 提取 TF-IDF　特征
 def extractTFIDF(sourceDir, sourceFiles):
     """ Extract TF-IDF features from GDB traces """
     try:
+        """
+        for循环，针对每一个源文件(.c)，生成以下文件
+        .objdump    (static,non-stripped)
+        .objdumps   (static,stripped)
+        .dyndis     (dynamic,non-stripped)
+        .dyndiss    (dynamic,stripped)
+        .input      (test case, GDB run参数，传递参数给正在调试的程序)
+
+        .tfidf      (提取的特征)
+        """
         for targetFile in sourceFiles:
             # (1) Compile the file
-            outFile, outFile_strip = compileFile(targetFile)
+            outFile, outFile_strip = compileFile(targetFile)#编译源文件并返回生成文件(with -s, without -s)
             if outFile == "" or outFile_strip == "":
                 prettyPrint("Unable to compile \"%s\". Skipping" % targetFile, "warning")
                 continue
             # (1.a) Generate objdumps from binaries
             if generateObjdumpDisassembly(outFile) and generateObjdumpDisassembly(outFile_strip, ".outs", ".objdumps"):
                 prettyPrint("%s.objdump and %s.objdumps have been successfully generated" % (outFile, outFile_strip))
-                shutil.copy(outFile.replace(".out", ".objdump"), sourceDir)
+                shutil.copy(outFile.replace(".out", ".objdump"), sourceDir)#复制生成的.objdump文件复制到sourceDir目录
                 shutil.copy(outFile_strip.replace(".outs", ".objdumps"), sourceDir)
 
             # (2) Generate a disassembly trace file
             _generateDisassembly(targetFile, outFile, outFile_strip)
 
         # (3) After all files are done, load all the "dyndis" files and extract TF-IDF features from them.
-        #disassemblyFiles = glob.glob("%s/*.dyndis" % sourceDir)
-        #if len(disassemblyFiles) < 1:
-        #    prettyPrint("Unable to retrieve \".dyndis\" files from \"%s\"" % sourceDir, "warning")
-        #    return False
-        #prettyPrint("Successfully retrieved %s \".dyndis\" files from \"%s\"" % (len(disassemblyFiles), sourceDir))
-        #if extractTFIDFMemoryFriendly(disassemblyFiles, "dyndis"):
-        #    prettyPrint("TF-IDF features were successfully generated")
-        #else:
-        #    prettyPrint("Could not generated TF-IDF features", "warning")
-        #    return False
+        disassemblyFiles = glob.glob("%s/*.dyndis" % sourceDir)
+        if len(disassemblyFiles) < 1:
+            prettyPrint("Unable to retrieve \".dyndis\" files from \"%s\"" % sourceDir, "warning")
+            return False
+        prettyPrint("Successfully retrieved %s \".dyndis\" files from \"%s\"" % (len(disassemblyFiles), sourceDir))
+        if extractTFIDFMemoryFriendly(disassemblyFiles, "dyndis"):
+            prettyPrint("TF-IDF features were successfully generated")
+        else:
+            prettyPrint("Could not generated TF-IDF features", "warning")
+            return False
          
     except Exception as e:
         prettyPrint("Error encountered in \"extractTFIDF\": %s" %e, "error")
@@ -338,7 +365,7 @@ def extractTraces(sourceFiles):
                 continue        
     
             prettyPrint("Launching the GDB script. Release the Kraken!!")
-            print subprocess.Popen(["gdb", "--batch-silent", "-x", "script", outFile], stderr=subprocess.STDOUT, stdout=subprocess.PIPE).communicate()[0]
+            print (subprocess.Popen(["gdb", "--batch-silent", "-x", "script", outFile], stderr=subprocess.STDOUT, stdout=subprocess.PIPE).communicate()[0])
             # Get the instruction trace of the process from "gdb.txt" and extract features from it
             if os.path.exists("gdb.txt"):
                 # Store the contents of "gdb.txt" as disassembly for further processing
@@ -624,25 +651,34 @@ def extractTritonFeatures(sourceDir):
 
     return True
 
+#done 生成corpus,并包含一个generator，
 class MyCorpus(object):
     """ Helper class for the gensim-based TF-IDF extraction """
     def __init__(self, docs):
         self.documents = docs
         self.tokens = dictionary.Dictionary()
         # Retrieve tokens form documents, populating the tokens dictionary
+
+        #从ducuments中得到tokens并添加在corpus中
         for doc in self.documents:
             content = [[word for word in open(doc).read().lower().split() if word not in [",","%","(",")",",",":","\n","$"]]]
             self.tokens.add_documents(content)
-        print "[*] Retrieved %s tokens from %s documents in the corpus" % (len(self.tokens), len(self.documents))
+        print ("[*] Retrieved %s tokens from %s documents in the corpus" % (len(self.tokens), len(self.documents)))
 
     def  __iter__(self):
         # Iterate over documents in the corpus retrurning their token counts
+
+        #在corpus中迭代documents，并返回一个List，包含多个tuple(索引,次数)
         for doc in self.documents:
             yield self.tokens.doc2bow(open(doc).read().lower().split())#, return_missing=True)
 
+#done 根据输入List的第二个值，降序排列 (token出现次数)
 def cmpTuple(x,y):
-#    if type(x) != tuple or type(y) != tuple or not len(x) == len(y) == 2:
-#        return 0
+    #    if type(x) != tuple or type(y) != tuple or not len(x) == len(y) == 2:
+    #        return 0
+    '''
+    返回值为正，交换参数位置
+    '''
     if x[1] > y[1]:
         return -1
     elif x[1] < y[1]:
@@ -650,6 +686,7 @@ def cmpTuple(x,y):
     else:
         return 0 
 
+#done 如果k(tokenid)等于l(tokenid,次数)第一个参数，则返回出现次数
 def getTupleKey(l, k):
     if len(l) < 1:
         return 0
@@ -659,6 +696,7 @@ def getTupleKey(l, k):
                 return element[1]
     return 0
 
+#done 对输入文件　使用sklearn中已有方法　提取特征
 def extractTFIDFMemoryFriendly(source, fileextension, maxfeatures=128, outextension="tfidf"):
     """ Extracts TF-IDF features from corpus using the memory friendly gensim library """
     try:
@@ -685,16 +723,18 @@ def extractTFIDFMemoryFriendly(source, fileextension, maxfeatures=128, outextens
         filename = "corpus_%s_%s" % (str(int(time.time())), fileextension)
         corpus_mem_friendly.tokens.save_as_text(filename)
         tokens = open(filename).read().split('\n')
-        tokenTuples = []
+
+        tokenTuples = []#保存若干个tuple，tuple中第一个数表示tokenid，第二个数表示token在corpus出现的次数
         for t in tokens:
             if len(t) > 1:
                 tokenTuples.append((int(t.split('\t')[0]), int(t.split('\t')[2])))
         # Now sort them descendingly
         prettyPrint("Sorting the tokens according to their document frequency")
         #print tokenTuples #TODO: Remove me!!
-        tokenTuples.sort(cmp=cmpTuple)
+        tokenTuples.sort(cmp=cmpTuple)#降序排列，出现频率高的tokens排在前面
 
         # Build a list of vectors
+        #List中含有 len(allfiles)　个子List，每个子List中包含若干个tuple,每个tuple表示当前文件中每个token在corpus中的索引和出现的次数
         allVectors = [v for v in corpus_mem_friendly]    
 
         # Build a numpy matrix of zeros
@@ -708,6 +748,8 @@ def extractTFIDFMemoryFriendly(source, fileextension, maxfeatures=128, outextens
                 # a. Get the token key
                 tokenKey = tokenTuples[featureIndex][0]
                 #print allVectors[vectorIndex], tokenKey, getTupleKey(allVectors[vectorIndex], tokenKey)
+
+                #第n维度代表第n个文件中token(corpus中出现频率最高的128个tokens)的次数
                 X[vectorIndex][featureIndex] = getTupleKey(allVectors[vectorIndex], tokenKey)
 
         #print corpus_mem_friendly.tokens.token2id
@@ -715,17 +757,19 @@ def extractTFIDFMemoryFriendly(source, fileextension, maxfeatures=128, outextens
         #print X
            
         # Now apply the TF-IDF transformation
+        #调用sklearn中方法　提取TF-IDF
         optimusPrime = TfidfTransformer()
         prettyPrint("Extracting TF-IDF features")
-        X_tfidf = optimusPrime.fit_transform(X)
+        X_tfidf = optimusPrime.fit_transform(X)#将词频矩阵Ｘ统计成TF-IDF权重
 
+        #保存每个文件的TF-IDF到.tfidf文件中
         prettyPrint("Saving TF-IDF vectors to \"%s\" files" % outextension)
         for doc_index in range(len(allfiles)):
             tfidf_file = open(allfiles[doc_index].replace(fileextension, outextension), "w")
             tfidf_file.write(str(X_tfidf.toarray()[doc_index,:].tolist()))
             tfidf_file.close()
 
-        os.unlink(filename) 
+        os.unlink(filename)#删除corpus 
 
     except Exception as e:
         prettyPrint("Error encountered in \"extractTFIDFMemoryFriendly\": %s" % e, "error")

@@ -31,8 +31,10 @@ def cleanUp():
     if os.path.exists("gdb.txt"):
         os.unlink("gdb.txt")
 
+#done
 def getRandomNumber(length=8):
-    return ''.join(random.choice(string.digits) for i in range(length))
+    #生成length长度的随机数以字符串形式保存，例如：'37015' (length = 5)
+    return ''.join(random.choice(string.digits) for i in range(length)) #join()　将序列中的元素以指定字符链接生成一个新的字符串
 
 def getRandomAlphaNumeric(length=8):
     return ''.join(random.choice(string.ascii_letters + string.digits) for i in range(length))
@@ -60,6 +62,7 @@ def getOriginalFileName(fileName, fileExtension=".c"):
 
     return originalFileName
 
+#done
 def checkTestCaseSuccess(output):
     """ Searches the output of the GDB script for incentives of failure """
     incentives = ["error", "fail", "unexpected", "cannot"]

@@ -48,7 +48,7 @@ def plotReductionGraph(dataSamples, dataLabels, classNames, dimension=2, graphTi
     try:
         timestamp = int(time.time())
         colors = ['DarkRed', 'DarkGreen', 'DarkBlue', 'DarkOrange', 'DarkMagenta', 'DarkCyan', 'Gray', 'Black']
-        randomColor = lambda: random.randint(0,255)
+        randomColor = lambda: random.randint(0,255)#生成大于等于０小于等于255之间的随机整数
         markers = ['*', 'o', 'v', '^', 's', 'd', 'D', 'p', 'h', 'H', '<', '>', '.', ',', '|', '_']
 
         fig = P.figure(figsize=(8,5))
@@ -96,14 +96,24 @@ def plotReductionGraph(dataSamples, dataLabels, classNames, dimension=2, graphTi
         return False
     
     return True
-    
+
+#done   初始化相关数据用于画图
 def visualizeData(sourceDir, fileExtension, dimension, algorithm="tsne", filename="visualization.pdf"):
     """ Reduces data to <dimension>-dimensional space using PCA and plots results """
     try:
         prettyPrint("Loading data samples of extension \"%s\" from \"%s\"" % (fileExtension, sourceDir))
         dataFiles = sorted(glob.glob("%s/*.%s" % (sourceDir, fileExtension)))
+
+        '''
+        dataSamples 用于训练模型的所有数据
+        loadedClasses 针对.lable文件，　保存使用的所有混淆方法
+        dataLabls　针对.lable文件，　每个文件使用的混淆方法在 loadedClasses 中的索引
+        '''
+
         dataSamples, dataLabels, loadedClasses = [], [], []
         for dataPoint in dataFiles:
+
+            #读取特征文件中的内容做相应处理后保存到dataSamples文件中
             if fileExtension == "triton":
                 # For "triton" features that contain numerical/nominal features
                 allAttributes = open(dataPoint).read().replace("\n", "").replace(" ", "")[1:-1].split(",")
@@ -119,6 +129,7 @@ def visualizeData(sourceDir, fileExtension, dimension, algorithm="tsne", filenam
             else:
                 # For all other extensions that contain numerical features
                 dataSamples.append([float(x) for x in open(dataPoint).read()[1:-1].replace(" ","").split(",")])
+            
             # Also load its class
             className, paramNames = loadLabelFromFile(dataPoint.replace(".%s" % fileExtension, ".label"))
             clusterName = className.split(",")[-1]# + str(paramNames)
@@ -131,6 +142,8 @@ def visualizeData(sourceDir, fileExtension, dimension, algorithm="tsne", filenam
         # Perform PCA or feature selection
         prettyPrint("Projecting feature vectors into %s-dimensional space using %s" % (dimension, algorithm))
         dataSamples = numpy.array(dataSamples) # Convert list to a numpy array
+
+        #初始化并用dataSamples数据来训练模型
         if algorithm == "tsne":
             tsne = TSNE(n_components=int(dimension), random_state=0)
             newdataSamples = tsne.fit_transform(dataSamples)

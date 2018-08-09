@@ -282,7 +282,7 @@ def gatherStatsFromLog(fileName, expType, accuracyMode):
     allDepths = {}
     currentDepth, currentTrends = "", []
     skip = True #TODO contributes to focusing on a certain depth/dimensionality
-    print "[*] Parsing content..."
+    print ("[*] Parsing content...")
     lineCount = 0
     for line in allLines:
         if line.lower().find("tree depth:") != -1 or line.lower().find("target dimensionality:") != -1:
@@ -346,14 +346,14 @@ def gatherStatsFromLog(fileName, expType, accuracyMode):
     keys.sort()
     allClasses, trends = [], []
     for tDepth in keys:
-        print len(allDepths[str(tDepth)])
-        print "================================"
-        print "[*] Dimensionality /  Depth: %s" % tDepth
-        print "================================"
+        print (len(allDepths[str(tDepth)]))
+        print ("================================")
+        print ("[*] Dimensionality /  Depth: %s" % tDepth)
+        print ("================================")
         total = 0
         for trend in allDepths[str(tDepth)]:
             trends.append(trend)
-            print "[*] %s encountered %s time(s)" % (trend[0], trend[1])
+            print ("[*] %s encountered %s time(s)" % (trend[0], trend[1]))
             total += trend[1]
             # Parse trend name
             class1 = trend[0].split(" (as) ")[0]
@@ -366,9 +366,9 @@ def gatherStatsFromLog(fileName, expType, accuracyMode):
         # Sort classes alphabetically
         allClasses.sort()
         encodedClasses = {i+1: allClasses[i] for i in range(len(allClasses))}
-        print "----------------------------------"
-        print "[*] Total trend occurrences: %s" % total
-        print "----------------------------------"
+        print ("----------------------------------")
+        print ("[*] Total trend occurrences: %s" % total)
+        print ("----------------------------------")
         # 2- Build a matrix of zeros
         confusionMatrix = numpy.zeros((len(allClasses), len(allClasses)))
         # 3- iterate over trends and extraxt classes
@@ -412,13 +412,13 @@ def gatherStatsFromLog(fileName, expType, accuracyMode):
         #f.write("\n %s" % str(encodedClasses))
         #f.close()
         #print lineCount
-        print "----------------------------------"
-        print "[*] Accuracy mode: %s\n[*] Correctly classified: %s\n[*] Incorrectly classified: %s\n[*] Classification accuracy: %s%%\n[*] Total trends: %s" % (accuracyMode, correct, incorrect, accuracy, total)
-        print "----------------------------------"
+        print ("----------------------------------")
+        print ("[*] Accuracy mode: %s\n[*] Correctly classified: %s\n[*] Incorrectly classified: %s\n[*] Classification accuracy: %s%%\n[*] Total trends: %s" % (accuracyMode, correct, incorrect, accuracy, total))
+        print ("----------------------------------")
         allKeys = encodedClasses.keys()
         allKeys.sort()
         for k in allKeys:
-            print "[%s] =>  \"%s\" => %s" % (k, chr(k+96).upper(), encodedClasses[k])    
+            print ("[%s] =>  \"%s\" => %s" % (k, chr(k+96).upper(), encodedClasses[k]))    
 
 
 

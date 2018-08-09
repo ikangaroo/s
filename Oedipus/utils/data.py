@@ -54,6 +54,7 @@ def loadArgumentsFromKLEE(fileName):
 
     return args, fileName.replace(".txt", ".input")
 
+#done
 def loadFeaturesFromDir(dirName, dataType, dataLabel="metadata"):
     """ Loads features all files in a directory into two lists """
     # Retrieve all files
@@ -70,6 +71,7 @@ def loadFeaturesFromFile(fileName):
             features.append(float(f))
     return features
 
+#done 提取所有特征值保存在dataPOints，classReference保存所有的混淆方法,dataLabels保存每个文件混淆方法的索引(针对classReference)
 def loadFeaturesFromList(dataFiles, dataType, labelExtension="metadata", classReference=[]):
     """ Loads features from a list of files """
     features = []
@@ -79,9 +81,12 @@ def loadFeaturesFromList(dataFiles, dataType, labelExtension="metadata", classRe
         return numpy.array([]), numpy.array([])
     # Iterate over files adding their values to an array
     dataPoints, dataLabels, allClasses = [], [], []
+    
     labelFile = "" # TODO: Again for KLEE test files
     for dataFile in dataFiles:
         currentExtension = dataFile[dataFile.rfind("."):]
+
+        #if未完成　不考虑
         if labelExtension == "label":
             # TODO: Accomodate for the KLEE files
             if dataFile.find("test") != -1:
@@ -96,6 +101,7 @@ def loadFeaturesFromList(dataFiles, dataType, labelExtension="metadata", classRe
  
         dataFile = dataFile.replace(currentExtension,".%s" % dataType) # Make sure we're loading from the right extension
 
+        #将所有文件的特征值存入dataPoints
         if dataType.find("tfidf") != -1 or dataType == "freq" or dataType == "util" or dataType == "hmm":
             # Load features as numerical
             dataPoints.append([float(x) for x in open(dataFile).read()[1:-1].split(',')])
@@ -121,6 +127,7 @@ def loadFeaturesFromList(dataFiles, dataType, labelExtension="metadata", classRe
         elif dataType == "seq" or dataType == "parseq":
             # Load features as sequence of strings
             dataPoints.append(open(dataFile).read())
+
         # Also add the class label
         if labelExtension == "label":
             if labelFile != "":
@@ -141,6 +148,7 @@ def loadFeaturesFromList(dataFiles, dataType, labelExtension="metadata", classRe
     # Now return the data points and labels as lists
     return dataPoints, dataLabels, classReference
 
+#done half  如果是lable文件，返回文件内容
 def loadLabelFromFile(fileName):
     """ Loads clusters from file into a string """
     cluster, params = "", {}
@@ -338,6 +346,7 @@ def flipSign(data, sign="+"):
 
     return tempData 
 
+#done 过滤影响不大的数据
 def filterTraces(sourceDir, inExtension, filterMode, outExtension, targetFunction="main"):
     """ Filters the GDB generated traces according to the supplied [filterMode] """
     immReg = r'\$0x\w+'
@@ -359,6 +368,11 @@ def filterTraces(sourceDir, inExtension, filterMode, outExtension, targetFunctio
         outputfile = open(inputfile.replace(inExtension, outExtension), "w")
         alllines = content.split('\n')
         inMain = False
+
+        '''
+        if else　中处理方法根据具体文件内容而写
+        '''
+        #静态，保存只和targetFunction有关的指令部分
         if inExtension.find("objdump") != -1 or inExtension.find("objdumps") != -1:
             rawlines = []
             for line in alllines:
@@ -372,7 +386,7 @@ def filterTraces(sourceDir, inExtension, filterMode, outExtension, targetFunctio
                         rawlines.append("%s()" % functionName)
                     else:
                         rawlines.append(line.split('\t')[-1])
-        else:
+        else:#动态，保存只和targetFunction有关的指令部分
             rawlines = []
             for line in alllines:
                 if line.find("=>") != -1 and line.find(targetFunction) != -1:
@@ -386,16 +400,17 @@ def filterTraces(sourceDir, inExtension, filterMode, outExtension, targetFunctio
                             line = "%s()" % functionName
 
         # Now filter them
+        #对过滤以后的数据　再进行处理后　写入目标文件
         for templine in rawlines:
             # Match and replace immediate and memory values
             # Are we allowed to filter immediate values as well?
             if filterMode.lower() == "both":
                 # Yes, then get rid of the immediate first (the more specific)
-                templine = re.sub(immReg, "imm", templine)
-                templine = re.sub(memReg, "mem", templine)
+                templine = re.sub(immReg, "imm", templine)#替换templine中的匹配项
+                templine = re.sub(memReg, "mem", templine)#
             elif filterMode.lower() == "mem":
                 # No, then check whether this is an immediate match
-                if re.search(immReg, templine):
+                if re.search(immReg, templine):#扫描整个字符串并返回第一个成功的匹配，否则返回None
                     # ... and skip
                     pass
                 else:
@@ -419,6 +434,9 @@ def filterTraces(sourceDir, inExtension, filterMode, outExtension, targetFunctio
         filecounter += 1
 
     prettyPrint("Successfully processed %s \"*.%s\"." % (filecounter, inExtension), "debug")
+    '''
+    应该在for循环中
+    '''
     outputfile.close()
     return True
 

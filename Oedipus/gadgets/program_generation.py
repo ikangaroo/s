@@ -14,24 +14,28 @@ tigressTransformations = {
 "EncodeArithmetic": {"EncodeArithmeticKinds":["integer"]},
 "Flatten":{"FlattenDispatch":["switch","goto","indirect", "call"], "FlattenOpaqueStructs":["list","array"]}
 }
-numPrograms = 0
-currentThreads = 0
+numPrograms = 0#生成的混淆程序的个数
+currentThreads = 0#未使用
 
+#done 生成一个包含将进行哪些混淆方式的tuple
+#generator function return a generator
 def _permutations(r=None):
     """ Returns an iterator of permutations of an iterable's members """
-    pool = tuple(tigressTransformations.keys()) # Get it from the global variable
+    pool = tuple(tigressTransformations.keys()) # Get it from the global variable 　返回一个字典所有的键
     n = len(pool)
     r = n if r is None else r
-    for indices in product(range(n), repeat=r):
-        if len(set(indices)) == r:
+    for indices in product(range(n), repeat=r):#例product(range(2),repeat=2) --> (0,0) 01 10 11 
+        if len(set(indices)) == r:#set()创建一个无序不重复元素集
             yield tuple(pool[i] for i in indices)
 
+#done 调用 Tigress 对.c文件进行混淆，并生成对应的.lable文件，记录使用了哪种混淆方法
 def generateMultipleObfuscations(currentFile, tigressDir, obfuscationLevel=1, obfuscationFunction="main"):
     """ Generates obfuscation versions of a program with varying obfuscation levels """
     try:
         global numPrograms
         # Get the permutations first
-        obfuscations = _permutations(obfuscationLevel)
+        obfuscations = _permutations(obfuscationLevel)#generator
+
         if obfuscationLevel > 1:
             obfuscations += tuple(("Virtualize;"*obfuscationLevel).split(';')[:-1])
             obfuscations += tuple(("Flatten;"*obfuscationLevel).split(';')[:-1])
@@ -39,9 +43,9 @@ def generateMultipleObfuscations(currentFile, tigressDir, obfuscationLevel=1, ob
 
         for permutation in obfuscations:
             # Build the obfuscation command
-            tigressCmd = ["tigress"]
+            tigressCmd = ["tigress"]#保存调用 Tigress　时候的命令行参数
             # Generate the timesamp for the file to generate
-            currentFileTimestamp = str(time.time()).replace(".", "_")
+            currentFileTimestamp = str(time.time()).replace(".", "_")#用于命名生成的混淆文件
             jitFlag = False
             for transformation in permutation:
                 if transformation == "AddOpaque":# or transformation == "EncodeLiterals":
@@ -79,6 +83,8 @@ def generateMultipleObfuscations(currentFile, tigressDir, obfuscationLevel=1, ob
                 print(tigressOutput)
             else:
                 # Save/update the label file
+
+                #生成对应的.label文件
                 label = "_".join(permutation)
                 if os.path.exists(currentFile.replace(".c", ".label")):
                     # Add the newly-generated transformations to the existing label
@@ -102,6 +108,7 @@ def generateMultipleObfuscations(currentFile, tigressDir, obfuscationLevel=1, ob
 
     return True
 
+#done  对每个.c文件生成一个对应的.lable文件
 def generateObfuscatedPrograms(sourceFiles, tigressDir="/opt/tigress-unstable", obfuscationLevel=1, obfuscationFunction="main"):
     """ Generates obfuscated programs using supported "Tigress" transformations """
     #numPrograms = len(sourceFiles)
