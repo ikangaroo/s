@@ -72,6 +72,8 @@ def cmpTuple(x,y):
 ##################
 # Main functions #
 ##################
+
+#训练集比较大时（不需要使用KFold交叉验证），使用朴素贝叶斯代码
 def classifyNaiveBayes(Xtr, ytr, Xte, yte, reduceDim="none", targetDim=0):
     """ Classified data using Naive Bayes """
     try:
@@ -102,7 +104,7 @@ def classifyNaiveBayes(Xtr, ytr, Xte, yte, reduceDim="none", targetDim=0):
     
     return accuracyRate, timing, probabilities, predicted
 
-
+#done 使用朴素贝叶斯模型
 def classifyNaiveBayesKFold(X, y, kFold=2, reduceDim="none", targetDim=0):
     """ Classifies data using Naive Bayes and K-Fold cross validation """
     try:
@@ -119,6 +121,9 @@ def classifyNaiveBayesKFold(X, y, kFold=2, reduceDim="none", targetDim=0):
             X_new = reduceDimensionality(X, y, reduceDim, targetDim)
         else:
             X_new = X
+
+        #一下部分同使用决策树基本一样，注释参考classifyTreeKFold()
+
         # Now carry on with classification
         kFoldValidator = KFold(n=len(X_new), n_folds=kFold, shuffle=False)
         # Make sure values are positive because MultinomialNB doesn't take negative features
@@ -159,6 +164,7 @@ def classifyNaiveBayesKFold(X, y, kFold=2, reduceDim="none", targetDim=0):
 
     return accuracyRates, probabilities, timings, groundTruthLabels, predictedLabels
 
+#训练集比较大时（不需要使用KFold交叉验证），使用决策树代码
 def classifyTree(Xtr, ytr, Xte, yte, splitCriterion="gini", maxDepth=0, visualizeTree=False):
     """ Classifies data using CART """
     try:
@@ -190,19 +196,24 @@ def classifyTree(Xtr, ytr, Xte, yte, splitCriterion="gini", maxDepth=0, visualiz
 
     return accuracyRate, timing, probabilities, predicted
 
+#done 使用决策树模型训练数据，并预测结果，计算准确率    调用sklearn
 def classifyTreeKFold(X, y, kFold=2, splitCriterion="gini", maxDepth=0, visualizeTree=False):
     """ Classifies data using CART and K-Fold cross validation """
     try:
         groundTruthLabels, predictedLabels = [], []
-        accuracyRates = [] # Meant to hold the accuracy rates
+        accuracyRates = [] # Meant to hold the accuracy rates　保存每次验证的准确性
         # Split data into training and test datasets
         trainingDataset, testDataset = [], []
         trainingLabels, testLabels = [], []
-        accuracyRates = []
-        probabilities = []
-        timings = []
+        accuracyRates = []#多余，重复定义
+        probabilities = []#测试数据的结果为每个lable的可能性
+        timings = []#训练决策树并预测test的时间差，体现性能
+
+        #将len(X)个样本分为n_folds份
         kFoldValidator = KFold(n=len(X), n_folds=kFold, shuffle=False)
         currentFold = 1
+
+        #trainingIndices, testIndices　都是原始数据集的样本索引，前者为训练集，后者是测试集
         for trainingIndices, testIndices in kFoldValidator:
             # Prepare the training and testing datasets
             for trIndex in trainingIndices:
@@ -217,6 +228,8 @@ def classifyTreeKFold(X, y, kFold=2, splitCriterion="gini", maxDepth=0, visualiz
             prettyPrint("Training a CART tree for classification using \"%s\" and maximum depth of %s" % (splitCriterion, maxDepth), "debug")
             cartClassifier.fit(numpy.array(trainingDataset), numpy.array(trainingLabels))
             prettyPrint("Submitting the test samples", "debug")
+
+            #返回一个大小为len(testDataset)的一维数组，第i个值为模型预测第i个预测样本的标签
             predicted = cartClassifier.predict(testDataset)
             endTime = time.time()
             # Add that to the groundTruthLabels and predictedLabels matrices
@@ -225,6 +238,8 @@ def classifyTreeKFold(X, y, kFold=2, splitCriterion="gini", maxDepth=0, visualiz
             # Compare the predicted and ground truth and append result to list
             accuracyRates.append(round(metrics.accuracy_score(predicted, testLabels), 2))
             # Also append the probability estimates
+
+            #返回n行k列数组，第i行第j列的值是模型预测第i个预测样本的标签为j的概率。　每一行的和等于１
             probs = cartClassifier.predict_proba(testDataset)
             probabilities.append(probs)
             timings.append(endTime-startTime) # Keep track of performance
@@ -246,6 +261,7 @@ def classifyTreeKFold(X, y, kFold=2, splitCriterion="gini", maxDepth=0, visualiz
 
     return accuracyRates, probabilities, timings, groundTruthLabels, predictedLabels
 
+#根据参数method降低每个样本特征向量的维度
 def reduceDimensionality(X, y, method="selectkbest", targetDim=10):
     """ Reduces the dimensionality of [X] to [targetDim] """
     try:

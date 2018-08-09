@@ -119,8 +119,12 @@ def main():
         ##############################################################################
         # MODE 4: Classify obfuscated programs using knowledge-based  classification #
         ##############################################################################
+
+        #done
         elif arguments.mode == "classify-exp1":
            # Check the requested algorithm
+
+           #使用朴素贝叶斯模型，操作和else中决策树基本相同（参考else中注释），只是中间调用了不同函数　　
            if arguments.algorithm == "bayes":
                # Classify using Naive Bayes
                if arguments.datatype.find("idf") == -1:
@@ -131,6 +135,8 @@ def main():
                reductionMethod = raw_input("Please choose a dimensionality reduction method (selectkbest/pca): ").lower()
                classificationLog = open("classificationlog_%s_exp1_%s_%s.txt" % (arguments.datatype, reductionMethod, arguments.algorithm), "a") # A file to log all classification labels
                classificationLog.write("Experiment 1 - Algorithm: %s, Datatype: %s\n" % (arguments.algorithm, arguments.datatype))
+
+               #判断使用哪种方法减少特征向量的维度
                if reductionMethod == "selectkbest":
                    accuracies, timings = [], []
                    targetDimensions = [8, 16, 32, 64, 128]#[64, 128, 256, 512, 1000]
@@ -187,11 +193,15 @@ def main():
            ####################
            # Using CART trees #
            ####################
+           
+           #done 使用决策树、KFold训练数据，并输出结果（准确率，预期结果，实际结果，性能等）
            elif arguments.algorithm == "tree":
                # Classify using CART trees
                if arguments.datatype != "triton":
                    prettyPrint("It is recommended to use \".triton\" features", "warning")
                # Load data from source directory
+
+               #X所有特征值，y每个文件混淆方法的索引（针对allCLasses），allClasses包含所有混淆方法
                X, y, allClasses = loadFeaturesFromDir(arguments.sourcedir, arguments.datatype, arguments.datalabel)
                splittingCriterion = raw_input("Please choose a splitting criterion (gini/entropy): ")
                classificationLog = open("classificationlog_%s_exp1_%s_%s.txt" % (arguments.datatype, splittingCriterion, arguments.algorithm), "a") # A file to log all classification labels
@@ -203,7 +213,7 @@ def main():
                        prettyPrint("Training a \"CART\" with \"%s\" criterion and maximum depth of %s" % (splittingCriterion, maxDepth), "debug")
                    accuracyRates, allProbabilities, allTimings, groundTruthLabels, predictedLabels = classification.classifyTreeKFold(X, y, int(arguments.kfold), splittingCriterion, int(maxDepth), visualizeTree=False)
                    #print accuracyRates, allProbabilities
-                   prettyPrint("Average classification accuracy: %s%%" % (averageList(accuracyRates)*100.0), "output")
+                   prettyPrint("Average classification accuracy: %s%%" % (averageList(accuracyRates)*100.0), "output")#计算多次准确率的平均值
                    accuracies.append(averageList(accuracyRates))
                    timings.append(averageList(allTimings))
                    # Log classifications
@@ -226,6 +236,8 @@ def main():
         ##################################################################
         # MODE 6: Classify obfuscated programs using the 36-4 experiment #
         ##################################################################
+
+        #done 对本来提取特征以后的tfidf文件再进行了特征提取，而且用到KFold交叉验证方法
         elif arguments.mode == "classify-exp2":
             # Retrieve the list of all programs
             allPrograms = glob.glob("%s/*.c" % arguments.originalprograms)#list(set(sorted(glob.glob("%s/*.c" % arguments.sourcedir))) - set(sorted(glob.glob("%s/*-*.c" % arguments.sourcedir))))
@@ -233,6 +245,7 @@ def main():
             totalPrograms = len(allPrograms)
             prettyPrint("Successfully retrieved %s original programs" % totalPrograms)
             chunkSize =  totalPrograms/int(arguments.kfold) # 4 = 40 / 10 (default)
+
             if arguments.algorithm == "tree":
                 criterion = raw_input("Please choose a splitting criterion (gini/entropy): ")
                 allValues = [2,3,4,5,6,7,8,10,12,14,16]#,32,64] # The allowed depths of the tree
@@ -240,9 +253,11 @@ def main():
                 criterion = raw_input("Please choose a dimensionality reduction method (SelectKBest/PCA): ").lower()
                 allValues = [8,16,32,64,128]# if criterion.lower() == "selectkbest" else [8,16,32,64,128]       
             # Define the structure of the accuracy and timing matrices
+            # numpy.zeros(x,y)创建x行y列的矩阵
             allAccuracyRates, allTimings = numpy.zeros((int(arguments.kfold), len(allValues))), numpy.zeros((int(arguments.kfold), len(allValues)))
             classificationLog = open("classificationlog_%s_exp2_%s_%s.txt" % (arguments.datatype, criterion, arguments.algorithm), "a") # A file to log all classification labels
             classificationLog.write("Experiment 2 - Algorithm: %s, Datatype: %s\n" % (arguments.algorithm, arguments.datatype))
+
             for currentCycle in range(10):
                 prettyPrint("Cycle #%s out of %s cycles" % (currentCycle+1, int(arguments.kfold)))
                 trainingPrograms, testPrograms = [] + allPrograms, []
@@ -255,13 +270,16 @@ def main():
                 testPrograms = trainingPrograms[testStartIndex:testStopIndex]
                 # Remove the indices from trainingPrograms
                 trainingPrograms = [x for x in trainingPrograms if not x in trainingPrograms[testStartIndex:testStopIndex]]
+
                 if arguments.verbose == "yes":
                     prettyPrint("Original training programs: %s, original test programs: %s" % (len(trainingPrograms), len(testPrograms)), "debug")
                 # Now load the training and test samples from the source directory
                 # 1- First we need to retrieve the obfuscated versions of the
                 tempTraining, tempTest = [], []
+
+                #得到训练集、测试集（.c文件）中每个文件对应的保存特征向量的文件（例如：.tfidf文件）
                 for program in trainingPrograms:
-                    programName = program.replace(arguments.originalprograms, "").replace("/","") # Isolate program name
+                    programName = program.replace(arguments.originalprograms, "").replace("/","") # Isolate program name 去掉路径，仅保留文件名
                     # TODO: Important: For 40 programs, programs are like "anagram_1231231231_12.c"
                     # TODO: for "obf" programs, programs are like "empty-Seed1-Random......-addOpaque16.c"
                     separator = "_" if arguments.sourcedir.find("40programs") != - 1 else "-"
@@ -281,11 +299,14 @@ def main():
                     if len(obfuscatedVersions) > 0:
                        tempTest += obfuscatedVersions
                 trainingPrograms, testPrograms = tempTraining, tempTest # Update the training and test programs
+
                 if arguments.verbose == "yes":
                     prettyPrint("Successfully retrieved %s training and %s test programs" % (len(trainingPrograms), len(testPrograms)), "debug")
                 # (Added January 15): Generate the TF-IDF features on the fly
                 if arguments.verbose == "yes":
                     prettyPrint("Generating TF-IDF features for the current training and test traces", "debug")
+
+                #对.tfidf文件继续采用TF-IDF再提取特征，保存到.ifidf_str文件中
                 if feature_extraction.extractTFIDFMemoryFriendly(trainingPrograms, arguments.datatype, 128, "%s_tr" % arguments.datatype):
                     prettyPrint("Successfully generated TF-IDF features for the current training batch") 
                 else:
@@ -303,6 +324,7 @@ def main():
                 Xtr, ytr, allClassestr = loadFeaturesFromList(trainingPrograms, "%s_tr" % arguments.datatype, arguments.datalabel)
                 Xte, yte, allClasseste = loadFeaturesFromList(testPrograms, "%s_te" % arguments.datatype, arguments.datalabel, allClassestr)
                 # Now apply the classification algorithm 
+                # 训练模型
                 for value in allValues:
                     ##############
                     # CART Trees #
